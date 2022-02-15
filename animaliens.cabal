@@ -22,7 +22,7 @@ common lang
 library
     import: lang
     exposed-modules:
-      Contract
+      AnimAliens
     build-depends:
       base >= 4.9 && < 5,
       aeson,
@@ -40,4 +40,17 @@ library
       text,
 
     hs-source-dirs: src
+
+executable create-smart-contract
+    import: lang
+    hs-source-dirs: app
+    main-is:        Main.hs
+    ghc-options:    -threaded -rtsopts -with-rtsopts=-T
+    build-depends:
+      , animaliens
+      , base
+      , cardano-api
+      , optparse-applicative
+      , plutus-ledger
+      , plutus-tx
 

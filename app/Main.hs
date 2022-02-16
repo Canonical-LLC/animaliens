@@ -9,9 +9,9 @@ import Options.Applicative
 import AnimAliens
 
 data Opts = Opts
-  { owner1 :: PubKeyHash
-  , owner2 :: PubKeyHash
-  , owner3 :: PubKeyHash
+  { team :: PubKeyHash
+  , project :: PubKeyHash
+  , community :: PubKeyHash
   , policyId :: CurrencySymbol
   , output :: FilePath
   } deriving Show
@@ -28,15 +28,15 @@ opts = info (optsParser <**> helper) . mconcat $
 optsParser :: Parser Opts
 optsParser = Opts
   <$> (strOption . mconcat $
-    [ long "owner1"
+    [ long "team"
     , metavar "PKH"
     ])
   <*> (strOption . mconcat $
-    [ long "owner2"
+    [ long "project"
     , metavar "PKH"
     ])
   <*> (strOption . mconcat $
-    [ long "owner3"
+    [ long "community"
     , metavar "PKH"
     ])
   <*> (strOption . mconcat $
@@ -51,7 +51,7 @@ optsParser = Opts
 
 createSC :: Opts -> IO ()
 createSC Opts{..} = do
-  result <- writeFileTextEnvelope output Nothing . tradeSerialised $ newContractInfo policyId owner1 owner2 owner3
+  result <- writeFileTextEnvelope output Nothing . tradeSerialised $ newContractInfo policyId team project community
   case result of
       Left err -> print $ displayError err
       Right () -> putStrLn $ "wrote validator to file " ++ output

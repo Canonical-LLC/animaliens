@@ -18,9 +18,6 @@
 
 module AnimAliens where
 
-import Playground.Contract
-import Wallet.Emulator.Wallet as Emulator
-import Plutus.Contract
 import           Data.Map             as Map
 import qualified Prelude              as Haskell
 --
@@ -29,7 +26,6 @@ import qualified PlutusTx
 import           PlutusTx.Prelude     as P
 import           Ledger               hiding (singleton)
 import           Ledger.Credential    (Credential (..))
-import           Ledger.Constraints   as Constraints
 import qualified Ledger.Scripts       as Scripts
 import qualified Ledger.Typed.Scripts as Scripts
 import           Ledger.Value         as Value
@@ -41,6 +37,7 @@ import           Cardano.Api hiding (Value, TxOut)
 import           Cardano.Api.Shelley hiding (Value, TxOut)
 import           Codec.Serialise hiding (encode)
 import qualified Plutus.V1.Ledger.Api as Plutus
+import GHC.Generics
 
 -- Contract
 -- Total Fee: 2.4%
@@ -50,15 +47,13 @@ data ContractInfo = ContractInfo
     , policyBid :: !CurrencySymbol
     , prefixSpaceBud :: !BuiltinByteString
     , prefixSpaceBudBid :: !BuiltinByteString
-    , owner1 :: !(PubKeyHash, Integer, Integer)
-    , owner2 :: !(PubKeyHash, Integer)
-    , owner3 :: !(PubKeyHash, Integer)
+    , team :: !(PubKeyHash, Integer, Integer)
+    , project :: !(PubKeyHash, Integer)
+    , community :: !(PubKeyHash, Integer)
     , extraRecipient :: !Integer
     , minPrice :: !Integer
     , bidStep :: !Integer
     } deriving (Generic, ToJSON, FromJSON)
-
-
 
 
 -- Data and Redeemers
@@ -131,29 +126,29 @@ tradeValidate contractInfo@ContractInfo{..} tradeDatum tradeAction context = cas
         signer = case txInfoSignatories txInfo of
             [pubKeyHash] -> pubKeyHash
 
-        (owner1PubKeyHash, owner1Fee1, owner1Fee2) = owner1
-        (owner2PubKeyHash, owner2Fee1) = owner2
-        (owner3PubKeyHash, owner3Fee1) = owner3
+        (teamPubKeyHash, teamFee1, teamFee2) = team
+        (projectPubKeyHash, projectFee1) = project
+        (communityPubKeyHash, communityFee1) = community
 
         -- minADA requirement forces the contract to give up certain fee recipients
         correctSplit :: Integer -> PubKeyHash -> Bool
         correctSplit lovelaceAmount tradeRecipient
             | lovelaceAmount >= 400000000 =
                 let
-                  amount1 = lovelacePercentage lovelaceAmount (owner1Fee2)
-                  amount2 = lovelacePercentage lovelaceAmount (owner2Fee1)
-                  amount3 = lovelacePercentage lovelaceAmount (owner3Fee1)
+                  amount1 = lovelacePercentage lovelaceAmount (teamFee2)
+                  amount2 = lovelacePercentage lovelaceAmount (projectFee1)
+                  amount3 = lovelacePercentage lovelaceAmount (communityFee1)
                   amount4 = lovelacePercentage lovelaceAmount extraRecipient
                 in
-                  Ada.fromValue (valuePaidTo txInfo owner1PubKeyHash) >= Ada.lovelaceOf amount1 && -- expected owner1 to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo owner2PubKeyHash) >= Ada.lovelaceOf amount2 && -- expected owner2 to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo owner3PubKeyHash) >= Ada.lovelaceOf amount3 && -- expected owner3 to receive right amount
+                  Ada.fromValue (valuePaidTo txInfo teamPubKeyHash) >= Ada.lovelaceOf amount1 && -- expected team to receive right amount
+                  Ada.fromValue (valuePaidTo txInfo projectPubKeyHash) >= Ada.lovelaceOf amount2 && -- expected project to receive right amount
+                  Ada.fromValue (valuePaidTo txInfo communityPubKeyHash) >= Ada.lovelaceOf amount3 && -- expected community to receive right amount
                   Ada.fromValue (valuePaidTo txInfo tradeRecipient) >= Ada.lovelaceOf (lovelaceAmount - amount1 - amount2 - amount3 - amount4) -- expected trade recipient to receive right amount
             | otherwise =
                 let
-                  amount1 = lovelacePercentage lovelaceAmount (owner1Fee1)
+                  amount1 = lovelacePercentage lovelaceAmount (teamFee1)
                 in
-                  Ada.fromValue (valuePaidTo txInfo owner1PubKeyHash) >= Ada.lovelaceOf amount1 && -- expected owner1 to receive right amount
+                  Ada.fromValue (valuePaidTo txInfo teamPubKeyHash) >= Ada.lovelaceOf amount1 && -- expected team to receive right amount
                   Ada.fromValue (valuePaidTo txInfo tradeRecipient) >= Ada.lovelaceOf (lovelaceAmount - amount1) -- expected trade recipient to receive right amount
 
         lovelacePercentage :: Integer -> Integer -> Integer
@@ -308,11 +303,10 @@ newContractInfo pid o1 o2 o3 = ContractInfo
     , policyBid = "800df05a0cc6b6f0d28aaa1812135bd9eebfbf5e8e80fd47da9989eb"
     , prefixSpaceBud = "SpaceBud"
     , prefixSpaceBudBid = "SpaceBudBid"
-    , owner1 = (o1, 416, 250) -- 2.4% 4.0%
-    , owner2 = (o2, 500) -- 2.0%
-    , owner3 = (o3, 500) -- 2.0%
+    , team = (o1, 416, 250) -- 2.4% 4.0%
+    , project = (o2, 500) -- 2.0%
+    , community = (o3, 500) -- 2.0%
     , extraRecipient = 2500 -- 0.4%
     , minPrice = 70000000
     , bidStep = 10000
     }
-

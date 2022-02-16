@@ -29,8 +29,6 @@ library
       bytestring,
       containers,
       freer-extras,
-      playground-common,
-      plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
       plutus-ledger,
@@ -53,4 +51,3 @@ executable create-smart-contract
       , optparse-applicative
       , plutus-ledger
       , plutus-tx
-

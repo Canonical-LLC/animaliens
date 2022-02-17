@@ -51,3 +51,4 @@ executable create-smart-contract
       , optparse-applicative
       , plutus-ledger
       , plutus-tx
+      , plutus-ledger-api

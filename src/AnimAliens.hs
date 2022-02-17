@@ -40,17 +40,16 @@ import qualified Plutus.V1.Ledger.Api as Plutus
 import GHC.Generics
 
 -- Contract
--- Total Fee: 2.4%
+-- Total Fee: 8%
 
 data ContractInfo = ContractInfo
     { policySpaceBudz :: !CurrencySymbol
     , policyBid :: !CurrencySymbol
     , prefixSpaceBud :: !BuiltinByteString
     , prefixSpaceBudBid :: !BuiltinByteString
-    , team :: !(PubKeyHash, Integer, Integer)
+    , team :: !(PubKeyHash, Integer)
     , project :: !(PubKeyHash, Integer)
     , community :: !(PubKeyHash, Integer)
-    , extraRecipient :: !Integer
     , minPrice :: !Integer
     , bidStep :: !Integer
     } deriving (Generic, ToJSON, FromJSON)
@@ -109,9 +108,9 @@ tradeValidate contractInfo@ContractInfo{..} tradeDatum tradeAction context = cas
 
     Offer TradeDetails{..} -> case tradeAction of
         Buy ->
-            containsSpaceBudNFT (valuePaidTo txInfo signer) budId && -- expected buyer to be paid
-            requestedAmount >= minPrice && -- expected at least minPrice buy
-            correctSplit requestedAmount tradeOwner -- expected ada to be split correctly
+            traceIfFalse "missing nft" (containsSpaceBudNFT (valuePaidTo txInfo signer) budId) && -- expected buyer to be paid
+            traceIfFalse "too low requested amount" (requestedAmount >= minPrice) && -- expected at least minPrice buy
+            traceIfFalse "wrong split" (correctSplit requestedAmount tradeOwner) -- expected ada to be split correctly
         Cancel ->
             txInfo `txSignedBy` tradeOwner -- expected correct owner
 
@@ -126,30 +125,23 @@ tradeValidate contractInfo@ContractInfo{..} tradeDatum tradeAction context = cas
         signer = case txInfoSignatories txInfo of
             [pubKeyHash] -> pubKeyHash
 
-        (teamPubKeyHash, teamFee1, teamFee2) = team
+        (teamPubKeyHash, teamFee1) = team
         (projectPubKeyHash, projectFee1) = project
         (communityPubKeyHash, communityFee1) = community
 
         -- minADA requirement forces the contract to give up certain fee recipients
         correctSplit :: Integer -> PubKeyHash -> Bool
-        correctSplit lovelaceAmount tradeRecipient
-            | lovelaceAmount >= 400000000 =
-                let
-                  amount1 = lovelacePercentage lovelaceAmount (teamFee2)
-                  amount2 = lovelacePercentage lovelaceAmount (projectFee1)
-                  amount3 = lovelacePercentage lovelaceAmount (communityFee1)
-                  amount4 = lovelacePercentage lovelaceAmount extraRecipient
-                in
-                  Ada.fromValue (valuePaidTo txInfo teamPubKeyHash) >= Ada.lovelaceOf amount1 && -- expected team to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo projectPubKeyHash) >= Ada.lovelaceOf amount2 && -- expected project to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo communityPubKeyHash) >= Ada.lovelaceOf amount3 && -- expected community to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo tradeRecipient) >= Ada.lovelaceOf (lovelaceAmount - amount1 - amount2 - amount3 - amount4) -- expected trade recipient to receive right amount
-            | otherwise =
-                let
-                  amount1 = lovelacePercentage lovelaceAmount (teamFee1)
-                in
-                  Ada.fromValue (valuePaidTo txInfo teamPubKeyHash) >= Ada.lovelaceOf amount1 && -- expected team to receive right amount
-                  Ada.fromValue (valuePaidTo txInfo tradeRecipient) >= Ada.lovelaceOf (lovelaceAmount - amount1) -- expected trade recipient to receive right amount
+        correctSplit lovelaceAmount tradeRecipient =
+          let
+            amount1 = lovelacePercentage lovelaceAmount (teamFee1)
+            amount2 = lovelacePercentage lovelaceAmount (projectFee1)
+            amount3 = lovelacePercentage lovelaceAmount (communityFee1)
+          in
+            Ada.fromValue (valuePaidTo txInfo teamPubKeyHash) >= Ada.lovelaceOf amount1 && -- expected team to receive right amount
+            Ada.fromValue (valuePaidTo txInfo projectPubKeyHash) >= Ada.lovelaceOf amount2 && -- expected project to receive right amount
+            Ada.fromValue (valuePaidTo txInfo communityPubKeyHash) >= Ada.lovelaceOf amount3 && -- expected community to receive right amount
+            Ada.fromValue (valuePaidTo txInfo tradeRecipient) >= Ada.lovelaceOf (lovelaceAmount - amount1 - amount2 - amount3) -- expected trade recipient to receive right amount
+
 
         lovelacePercentage :: Integer -> Integer -> Integer
         lovelacePercentage am p = (am * 10) `divide` p
@@ -297,16 +289,15 @@ tradeSBS = SBS.toShort . LBS.toStrict . serialise . tradeScript
 tradeSerialised :: ContractInfo -> PlutusScript PlutusScriptV1
 tradeSerialised = PlutusScriptSerialised . tradeSBS
 
-newContractInfo :: CurrencySymbol -> PubKeyHash -> PubKeyHash -> PubKeyHash -> ContractInfo
-newContractInfo pid o1 o2 o3 = ContractInfo
+newContractInfo :: CurrencySymbol -> BuiltinByteString -> PubKeyHash -> PubKeyHash -> PubKeyHash -> ContractInfo
+newContractInfo pid tokenPrefix teamPkh projectPkh communityPkh = ContractInfo
     { policySpaceBudz = pid
     , policyBid = "800df05a0cc6b6f0d28aaa1812135bd9eebfbf5e8e80fd47da9989eb"
-    , prefixSpaceBud = "SpaceBud"
+    , prefixSpaceBud = tokenPrefix
     , prefixSpaceBudBid = "SpaceBudBid"
-    , team = (o1, 416, 250) -- 2.4% 4.0%
-    , project = (o2, 500) -- 2.0%
-    , community = (o3, 500) -- 2.0%
-    , extraRecipient = 2500 -- 0.4%
+    , team = (teamPkh, 500) -- 2.0%
+    , project = (projectPkh, 500) -- 2.0%
+    , community = (communityPkh, 250) -- 4.0%
     , minPrice = 70000000
     , bidStep = 10000
     }

@@ -7,12 +7,15 @@ import Ledger hiding (singleton)
 import Options.Applicative
 
 import AnimAliens
+import Data.String
+import Plutus.V1.Ledger.Value(TokenName(..))
 
 data Opts = Opts
   { team :: PubKeyHash
   , project :: PubKeyHash
   , community :: PubKeyHash
   , policyId :: CurrencySymbol
+  , tokenNamePrefix :: String
   , output :: FilePath
   } deriving Show
 
@@ -44,6 +47,10 @@ optsParser = Opts
     , metavar "PID"
     ])
   <*> (strOption . mconcat $
+    [ long "token-name-prefix"
+    , metavar "PREFIX"
+    ])
+  <*> (strOption . mconcat $
     [ long "output"
     , metavar "FILE"
     , help "Where to write the script."
@@ -51,7 +58,11 @@ optsParser = Opts
 
 createSC :: Opts -> IO ()
 createSC Opts{..} = do
-  result <- writeFileTextEnvelope output Nothing . tradeSerialised $ newContractInfo policyId team project community
+
+  -- let tokenNameBytes = unTokenName $ fromString tokenNamePrefix
+  let tokenNameBytes = fromString tokenNamePrefix
+
+  result <- writeFileTextEnvelope output Nothing . tradeSerialised $ newContractInfo policyId tokenNameBytes team project community
   case result of
       Left err -> print $ displayError err
       Right () -> putStrLn $ "wrote validator to file " ++ output

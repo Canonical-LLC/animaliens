@@ -6,7 +6,7 @@ tempDir=$baseDir/../temp
 
 DATUM_PREFIX=${1:-0}
 
-$baseDir/generate-datums.sh 100000
+$baseDir/generate-datums.sh
 
 $baseDir/core/lock-1-input-tx.sh \
   $(cat ~/$BLOCKCHAIN_PREFIX/seller.addr) \

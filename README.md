@@ -1,4 +1,4 @@
-The "Buy Now" contract for animaliens
+The "Buy Now" contract for animaliens. This ia a modified Spacebudz with a percent of the purchases going to the team, project and community wallets.
 
 ## Creating the Script Address
 

@@ -2,11 +2,7 @@ set -eu
 thisDir=$(dirname "$0")
 tempDir=$thisDir/../temp
 
-nowSeconds=$(date +%s)
-now=$(($nowSeconds*1000))
-timestamp=$(($nowSeconds*1000+$1))
-betterOfferTimestamp=$(($timestamp+5000000000))
-prefix=${2:-0}
+prefix=${1:-0}
 
 mkdir -p $tempDir/$BLOCKCHAIN_PREFIX/datums/$prefix
 mkdir -p $tempDir/$BLOCKCHAIN_PREFIX/redeemers/$prefix

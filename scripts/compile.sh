@@ -16,7 +16,7 @@ cabal run exe:create-smart-contract -- \
   --team=$teamPkh \
   --project=$projectPkh \
   --community=$communityPkh \
-  --token-name-prefix=token
+  --token-name-prefix=Animaliens
 )
 
 $thisDir/hash-plutus.sh
